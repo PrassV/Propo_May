@@ -1,30 +1,22 @@
 from typing import Callable, Optional
 from fastapi import Depends
 from app.db.repositories.user_repository_supabase import UserRepositorySupabase
-from app.db.repositories.property_repository import PropertyRepository
-from app.db.session import get_db
-from sqlalchemy.ext.asyncio import AsyncSession
+from app.db.repositories.property_repository_supabase import PropertyRepositorySupabase
+from app.db.repositories.unit_repository_supabase import UnitRepositorySupabase
 
-# Factory for getting repository instances
-# This helps with dependency injection and makes switching between
-# SQLAlchemy and Supabase implementations easier
-
+# Factory for getting repository instances without needing a DB session
 def get_repository(repo_class: Callable):
     """
     Factory function to get a repository instance.
-    This works with both SQLAlchemy-based repositories that need a db session
-    and Supabase-based repositories that don't.
+    All repositories are now Supabase-based and don't need a db session.
     """
     
-    async def _get_repo(db: Optional[AsyncSession] = Depends(get_db)):
-        if 'Supabase' in repo_class.__name__:
-            # Supabase repositories don't need a db session
-            return repo_class()
-        else:
-            # SQLAlchemy repositories need a db session
-            return repo_class(db)
+    async def _get_repo():
+        return repo_class()
     
     return _get_repo
 
 # Create specific dependencies for each repository
-get_user_repository = get_repository(UserRepositorySupabase) 
+get_user_repository = get_repository(UserRepositorySupabase)
+get_property_repository = get_repository(PropertyRepositorySupabase)
+get_unit_repository = get_repository(UnitRepositorySupabase) 

@@ -1,5 +1,4 @@
 from app.db.supabase import supabase
-from app.db.schema_mapper import schema_mapper
 from typing import Dict, List, Any, Optional
 import uuid
 import logging
