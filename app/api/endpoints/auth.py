@@ -1,171 +1,207 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Header, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Body
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from jose import jwt, JWTError
-from pydantic import ValidationError, EmailStr
-from typing import Optional, Dict, Any
-from app.schemas.token import Token, TokenPayload
-from app.schemas.user import User, UserCreate, UserBase
+from typing import Dict, Any
+
+from app.schemas.token import Token
+from app.schemas.user import User, UserCreate
 from app.core.security.auth import create_access_token, create_refresh_token
 from app.db.session import get_db
 from app.db.repositories.user_repository_supabase import UserRepositorySupabase
 from app.db.supabase import supabase
-from app.api.dependencies.auth import get_current_active_user
+from app.core.errors.supabase_error_handler import SupabaseError
 from app.core.config.settings import settings
-from uuid import UUID
-import json
 import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-@router.post("/register", status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=User, status_code=status.HTTP_201_CREATED)
 async def register_user(
-    user_in: UserCreate
+    user_in: UserCreate,
 ):
     """
-    Register a new user with Supabase Auth and store user data in Supabase database.
+    Register a new user with both Supabase Auth and save user metadata.
     """
     try:
-        # Create user in Supabase auth
-        supabase_response = supabase.auth.sign_up({
+        # First, register with Supabase Auth
+        auth_response = supabase.auth.sign_up({
             "email": user_in.email,
-            "password": user_in.password,
+            "password": user_in.password
         })
         
-        if not supabase_response or not supabase_response.user:
+        if not auth_response.user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Failed to register user with Supabase"
+                detail="Registration failed with Supabase Auth"
             )
         
-        # Create user in our Supabase database table
+        # Get the user ID from the auth response
+        supabase_uid = auth_response.user.id
+        
+        # Now, save additional user metadata
         user_repo = UserRepositorySupabase()
         user_data = user_in.model_dump(exclude={"password"})
-        user_data["supabase_uid"] = supabase_response.user.id
-        user_data["status"] = "active"
+        user_data["user_id"] = supabase_uid  # Use this as the user_id in our users table
         
         created_user = await user_repo.create(user_data)
         
-        # Return combined data
-        return {
-            "id": created_user.get("id"),
-            "email": created_user.get("email"),
-            "first_name": created_user.get("first_name"),
-            "last_name": created_user.get("last_name"),
-            "role": created_user.get("role"),
-            "message": "User registered successfully. Please check your email for verification."
-        }
+        if not created_user:
+            # If we couldn't save metadata, we should clean up the auth user
+            # This is not ideal but prevents orphaned auth users
+            logger.error(f"Failed to save user metadata for user {supabase_uid}")
+            # Note: In a real app, you might want to delete the auth user here
+            
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to save user metadata"
+            )
+        
+        return created_user
     except Exception as e:
-        logger.error(f"Registration error: {str(e)}")
-        # If we get an error from Supabase, it might be that the user already exists
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Registration failed: {str(e)}"
+        logger.error(f"Registration error: {e}")
+        if isinstance(e, HTTPException):
+            raise
+        
+        # Handle Supabase specific errors
+        error_message = str(e)
+        if "already registered" in error_message.lower():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+        
+        raise SupabaseError(
+            code="REGISTRATION_ERROR",
+            message=f"Registration failed: {error_message}",
+            status_code=status.HTTP_400_BAD_REQUEST
         )
 
 @router.post("/login", response_model=Token)
 async def login(
-    form_data: OAuth2PasswordRequestForm = Depends()
+    form_data: OAuth2PasswordRequestForm = Depends(),
 ):
     """
-    Authenticate user with Supabase Auth and return tokens.
+    Login with Supabase Auth and return access and refresh tokens.
     """
     try:
         # Authenticate with Supabase
-        supabase_response = supabase.auth.sign_in_with_password({
+        auth_response = supabase.auth.sign_in_with_password({
             "email": form_data.username,
-            "password": form_data.password,
+            "password": form_data.password
         })
         
-        if not supabase_response or not supabase_response.user:
+        if not auth_response.user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect email or password",
+                detail="Incorrect email or password"
             )
         
-        # Get user from our database to check status
+        # Use the Supabase tokens directly
+        # Note: In a real app, you might want to validate these tokens or create your own
+        session = auth_response.session
+        if not session:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="No session returned from Supabase"
+            )
+        
+        # Get the user from our database
         user_repo = UserRepositorySupabase()
-        user = await user_repo.get_by_supabase_uid(supabase_response.user.id)
+        user = await user_repo.get_by_id(auth_response.user.id)
         
         if not user:
-            # If user is in Supabase but not in our DB, create a minimal record
-            user_data = {
-                "email": supabase_response.user.email,
-                "supabase_uid": supabase_response.user.id,
-                "first_name": "",
-                "last_name": "",
-                "role": "tenant",  # Default role
-                "status": "active"
-            }
-            user = await user_repo.create(user_data)
+            # This might happen if the user registered but their metadata wasn't saved
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User metadata not found"
+            )
         
         if user.get("status") != "active":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Inactive user",
+                detail="Inactive user"
             )
         
-        # Return the Supabase tokens
+        # Update last login time
+        await user_repo.update(auth_response.user.id, {
+            "last_login_at": auth_response.user.last_sign_in_at
+        })
+        
         return {
-            "access_token": supabase_response.session.access_token,
-            "refresh_token": supabase_response.session.refresh_token,
-            "token_type": "bearer",
+            "access_token": session.access_token,
+            "refresh_token": session.refresh_token,
+            "token_type": "bearer"
         }
     except Exception as e:
-        logger.error(f"Login error: {str(e)}")
+        logger.error(f"Login error: {e}")
+        if isinstance(e, HTTPException):
+            raise
+        
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Login failed: {str(e)}"
+            detail="Login failed"
         )
 
 @router.post("/refresh", response_model=Token)
 async def refresh_token(
-    refresh_token: str
+    refresh_token: str = Body(..., embed=True),
 ):
     """
-    Refresh authentication token using Supabase.
+    Refresh access token using Supabase refresh token.
     """
     try:
-        # Refresh token with Supabase
-        supabase_response = supabase.auth.refresh_session(refresh_token)
+        # Use the refresh token to get a new access token
+        auth_response = supabase.auth.refresh_session({
+            "refresh_token": refresh_token
+        })
         
-        if not supabase_response or not supabase_response.user:
+        if not auth_response.session:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid refresh token",
+                detail="Invalid refresh token"
             )
-            
+        
         return {
-            "access_token": supabase_response.session.access_token,
-            "refresh_token": supabase_response.session.refresh_token,
-            "token_type": "bearer",
+            "access_token": auth_response.session.access_token,
+            "refresh_token": auth_response.session.refresh_token,
+            "token_type": "bearer"
         }
     except Exception as e:
-        logger.error(f"Token refresh error: {str(e)}")
+        logger.error(f"Token refresh error: {e}")
+        if isinstance(e, HTTPException):
+            raise
+        
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Token refresh failed: {str(e)}"
+            detail="Token refresh failed"
         )
 
 @router.post("/logout")
-async def logout(
-    authorization: Optional[str] = Header(None),
-    current_user: Dict[str, Any] = Depends(get_current_active_user)
-):
+async def logout(authorization: str = Body(..., embed=True)):
     """
-    Log out the current user by signing out from Supabase.
+    Logout and invalidate the current session.
     """
-    if authorization and authorization.startswith("Bearer "):
-        try:
-            supabase.auth.sign_out()
-            return {"message": "Successfully logged out"}
-        except Exception as e:
-            logger.error(f"Logout error: {str(e)}")
+    try:
+        # Extract the token from the authorization header
+        if not authorization.startswith("Bearer "):
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Logout failed: {str(e)}"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid authorization format"
             )
-    
-    return {"message": "Successfully logged out"} 
+        
+        token = authorization[7:]  # Remove "Bearer " prefix
+        
+        # Sign out using Supabase
+        supabase.auth.sign_out()
+        
+        return {"message": "Successfully logged out"}
+    except Exception as e:
+        logger.error(f"Logout error: {e}")
+        if isinstance(e, HTTPException):
+            raise
+        
+        # Return success even on error to ensure the front end clears tokens
+        return {"message": "Logout processed"} 

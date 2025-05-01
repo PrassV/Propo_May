@@ -2,7 +2,8 @@ from sqlalchemy import Column, String, Integer, ForeignKey, Numeric, Text, Enum
 from sqlalchemy.dialects.postgresql import UUID, ARRAY
 from sqlalchemy.orm import relationship
 import enum
-from app.models.base import Base, TimestampMixin, UUIDMixin, uuid_pk
+import uuid
+from app.models.base import Base, TimestampMixin
 
 class UnitStatus(enum.Enum):
     available = "available"
@@ -14,7 +15,7 @@ class UnitStatus(enum.Enum):
 class Unit(Base, TimestampMixin):
     __tablename__ = "units"
     
-    unit_id = uuid_pk("unit_id")
+    unit_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     property_id = Column(UUID(as_uuid=True), ForeignKey("properties.property_id"), nullable=False)
     unit_number = Column(String, nullable=False)
     floor = Column(Integer)

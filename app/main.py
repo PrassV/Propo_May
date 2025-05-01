@@ -2,14 +2,22 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.api import api_router
 from app.core.config.settings import settings
+from app.core.errors.supabase_error_handler import SupabaseErrorHandler, SupabaseError
 import uvicorn
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 
 # Configure application
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    openapi_url="/openapi.json",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    openapi_url=f"{settings.API_V1_PREFIX}/openapi.json",
+    docs_url=f"{settings.API_V1_PREFIX}/docs",
+    redoc_url=f"{settings.API_V1_PREFIX}/redoc",
 )
 
 # Set up CORS with appropriate configuration
@@ -29,6 +37,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register Supabase exception handler
+app.add_exception_handler(SupabaseError, SupabaseErrorHandler.handle_exception)
+app.add_exception_handler(Exception, SupabaseErrorHandler.handle_exception)
 
 # Include API routes
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
