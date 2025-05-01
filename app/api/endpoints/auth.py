@@ -1,15 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Body, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from jose import jwt, JWTError
 from typing import Dict, Any
+from pydantic import EmailStr
 
 from app.schemas.token import Token
 from app.schemas.user import User, UserCreate
 from app.db.repositories.user_repository_supabase import UserRepositorySupabase
 from app.db.supabase import supabase
 from app.core.errors.supabase_error_handler import SupabaseError
+from app.core.errors.error_handler import handle_repository_error
 from app.core.config.settings import settings
 import logging
 
@@ -202,4 +204,78 @@ async def logout(authorization: str = Body(..., embed=True)):
             raise
         
         # Return success even on error to ensure the front end clears tokens
-        return {"message": "Logout processed"} 
+        return {"message": "Logout processed"}
+
+@router.post("/forgot-password")
+async def forgot_password(email: EmailStr = Body(..., embed=True)):
+    """
+    Send a password reset email to the user.
+    
+    This initiates the password reset flow via Supabase Auth.
+    """
+    try:
+        # Use Supabase Auth to send the password reset email
+        # The URL will be determined by Supabase settings or template
+        response = supabase.auth.reset_password_email(email)
+        
+        # Log the action
+        logger.info(f"Password reset requested for email: {email}")
+        
+        return {
+            "message": "Password reset instructions have been sent to your email",
+            "success": True
+        }
+    except Exception as e:
+        logger.error(f"Password reset error: {e}")
+        
+        # Don't leak information about whether the email exists
+        return {
+            "message": "If the email is registered, password reset instructions will be sent",
+            "success": True
+        }
+
+@router.post("/reset-password")
+async def reset_password(
+    token: str = Body(..., embed=True),
+    new_password: str = Body(..., embed=True)
+):
+    """
+    Reset the user's password using the token from the email.
+    
+    This completes the password reset flow.
+    """
+    try:
+        if len(new_password) < 8:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password must be at least 8 characters long"
+            )
+            
+        # Use Supabase Auth to reset the password
+        response = supabase.auth.update_user({
+            "password": new_password
+        })
+        
+        if not response.user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired reset token"
+            )
+            
+        # Log the action but don't include the new password
+        logger.info(f"Password reset successful for user: {response.user.id}")
+        
+        return {
+            "message": "Password has been reset successfully",
+            "success": True
+        }
+    except Exception as e:
+        logger.error(f"Password reset completion error: {e}")
+        
+        if isinstance(e, HTTPException):
+            raise
+            
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to reset password. The link may have expired or is invalid."
+        ) 
