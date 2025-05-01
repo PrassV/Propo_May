@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.api import api_router
 from app.core.config.settings import settings
 from app.core.errors.supabase_error_handler import SupabaseErrorHandler, SupabaseError
+from app.db.supabase_config import configure_supabase_auth_urls, customize_email_templates
 import uvicorn
 import logging
 
@@ -11,6 +12,8 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
+
+logger = logging.getLogger(__name__)
 
 # Configure application
 app = FastAPI(
@@ -64,6 +67,22 @@ async def root():
 async def health_check():
     # Simple health check endpoint for Railway
     return {"status": "ok"}
+
+@app.on_event("startup")
+async def startup_event():
+    """Execute tasks when the application starts up"""
+    logger.info("Executing startup tasks...")
+    
+    # Configure Supabase Auth URLs and email templates
+    if settings.SUPABASE_SERVICE_ROLE_KEY:
+        await configure_supabase_auth_urls()
+        await customize_email_templates()
+    else:
+        logger.warning(
+            "SUPABASE_SERVICE_ROLE_KEY not provided. "
+            "Cannot configure Supabase Auth URLs or email templates. "
+            "Email confirmations will use default redirect URLs and templates."
+        )
 
 if __name__ == "__main__":
     # Run with uvicorn when executed directly

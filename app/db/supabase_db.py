@@ -2,6 +2,7 @@ from app.db.supabase import supabase
 from typing import Dict, List, Any, Optional
 import uuid
 import logging
+from app.utils.serializers import serialize_for_supabase
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +36,11 @@ class SupabaseTable:
             # Add automatic UUID if primary key not provided
             if self.pk_column not in data:
                 data[self.pk_column] = str(uuid.uuid4())
+            
+            # Serialize any datetime objects
+            serialized_data = serialize_for_supabase(data)
                 
-            response = supabase.table(self.table_name).insert(data).execute()
+            response = supabase.table(self.table_name).insert(serialized_data).execute()
             
             if response.data:
                 return response.data[0]
@@ -106,7 +110,10 @@ class SupabaseTable:
     async def update(self, record_id: str, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Update a record by its primary key"""
         try:
-            response = supabase.table(self.table_name).update(data).eq(self.pk_column, record_id).execute()
+            # Serialize any datetime objects
+            serialized_data = serialize_for_supabase(data)
+            
+            response = supabase.table(self.table_name).update(serialized_data).eq(self.pk_column, record_id).execute()
             
             if response.data and len(response.data) > 0:
                 return response.data[0]

@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     APP_PORT: int = int(os.getenv("PORT", 8000))  # Railway uses PORT
     BASE_URL: str = os.getenv("BASE_URL", "http://localhost:8000")
     
+    # Frontend URL for redirects (used by Supabase email templates)
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    
     # API configuration
     API_V1_PREFIX: str = "/api"
     PROJECT_NAME: str = "Property Management Portal"
