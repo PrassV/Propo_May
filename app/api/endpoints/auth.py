@@ -7,7 +7,7 @@ from typing import Dict, Any
 
 from app.schemas.token import Token
 from app.schemas.user import User, UserCreate
-from app.core.security.auth import create_access_token, create_refresh_token
+from app.core.security.auth import create_access_token, create_refresh_token, get_password_hash
 from app.db.session import get_db
 from app.db.repositories.user_repository_supabase import UserRepositorySupabase
 from app.db.supabase import supabase
@@ -45,6 +45,9 @@ async def register_user(
         user_repo = UserRepositorySupabase()
         user_data = user_in.model_dump(exclude={"password"})
         user_data["user_id"] = supabase_uid  # Use this as the user_id in our users table
+        
+        # Important: Set the password_hash field which is required in the database schema
+        user_data["password_hash"] = get_password_hash(user_in.password)
         
         created_user = await user_repo.create(user_data)
         

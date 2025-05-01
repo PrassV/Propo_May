@@ -18,9 +18,8 @@ class UserRepositorySupabase:
         Authentication is handled by Supabase Auth, this just stores additional user data.
         """
         try:
-            # No need to handle password, as Supabase Auth takes care of it
-            if "password" in user_data:
-                del user_data["password"]
+            # We handle password_hash in the auth endpoint now, so no need to remove 'password' here
+            # Note: If 'password' is still in the data, it will be ignored by the database
             
             # Ensure we have the correct field names according to Supabase
             if "role" in user_data and isinstance(user_data["role"], UserRole):
