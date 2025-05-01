@@ -2,7 +2,7 @@ from sqlalchemy import Column, String, Integer, ForeignKey, Numeric, Text, Enum
 from sqlalchemy.dialects.postgresql import UUID, ARRAY
 from sqlalchemy.orm import relationship
 import enum
-from app.models.base import Base, TimestampMixin, UUIDMixin
+from app.models.base import Base, TimestampMixin, UUIDMixin, uuid_pk
 
 class UnitStatus(enum.Enum):
     available = "available"
@@ -11,10 +11,11 @@ class UnitStatus(enum.Enum):
     reserved = "reserved"
     inactive = "inactive"
 
-class Unit(Base, UUIDMixin, TimestampMixin):
+class Unit(Base, TimestampMixin):
     __tablename__ = "units"
     
-    property_id = Column(UUID(as_uuid=True), ForeignKey("properties.id"), nullable=False)
+    unit_id = uuid_pk("unit_id")
+    property_id = Column(UUID(as_uuid=True), ForeignKey("properties.property_id"), nullable=False)
     unit_number = Column(String, nullable=False)
     floor = Column(Integer)
     bedrooms = Column(Numeric(3, 1), nullable=False)

@@ -2,7 +2,7 @@ from sqlalchemy import Column, String, Boolean, Enum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 import enum
-from app.models.base import Base, TimestampMixin, UUIDMixin
+from app.models.base import Base, TimestampMixin, UUIDMixin, uuid_pk
 
 class UserRole(enum.Enum):
     owner = "owner"
@@ -15,9 +15,10 @@ class UserStatus(enum.Enum):
     inactive = "inactive"
     pending = "pending"
 
-class User(Base, UUIDMixin, TimestampMixin):
+class User(Base, TimestampMixin):
     __tablename__ = "users"
     
+    user_id = uuid_pk("user_id")
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
     first_name = Column(String, nullable=False)

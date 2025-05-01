@@ -8,15 +8,16 @@ logger = logging.getLogger(__name__)
 class SupabaseTable:
     """Base class for interacting with Supabase tables"""
     
-    def __init__(self, table_name: str):
+    def __init__(self, table_name: str, pk_column: str = "id"):
         self.table_name = table_name
+        self.pk_column = pk_column
     
     async def create(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new record in the table"""
         try:
-            # Add automatic UUID if id not provided
-            if 'id' not in data:
-                data['id'] = str(uuid.uuid4())
+            # Add automatic UUID if primary key not provided
+            if self.pk_column not in data:
+                data[self.pk_column] = str(uuid.uuid4())
                 
             response = supabase.table(self.table_name).insert(data).execute()
             
@@ -30,7 +31,7 @@ class SupabaseTable:
     async def get_by_id(self, id: str) -> Optional[Dict[str, Any]]:
         """Get a record by ID"""
         try:
-            response = supabase.table(self.table_name).select("*").eq("id", id).execute()
+            response = supabase.table(self.table_name).select("*").eq(self.pk_column, id).execute()
             
             if response.data and len(response.data) > 0:
                 return response.data[0]
@@ -80,7 +81,7 @@ class SupabaseTable:
     async def update(self, id: str, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Update a record by ID"""
         try:
-            response = supabase.table(self.table_name).update(data).eq("id", id).execute()
+            response = supabase.table(self.table_name).update(data).eq(self.pk_column, id).execute()
             
             if response.data and len(response.data) > 0:
                 return response.data[0]
@@ -92,7 +93,7 @@ class SupabaseTable:
     async def delete(self, id: str) -> bool:
         """Delete a record by ID"""
         try:
-            response = supabase.table(self.table_name).delete().eq("id", id).execute()
+            response = supabase.table(self.table_name).delete().eq(self.pk_column, id).execute()
             
             if response.data and len(response.data) > 0:
                 return True

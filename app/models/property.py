@@ -2,17 +2,18 @@ from sqlalchemy import Column, String, Integer, ForeignKey, Numeric, Text, Enum
 from sqlalchemy.dialects.postgresql import UUID, ARRAY
 from sqlalchemy.orm import relationship
 import enum
-from app.models.base import Base, TimestampMixin, UUIDMixin
+from app.models.base import Base, TimestampMixin, UUIDMixin, uuid_pk
 
 class PropertyStatus(enum.Enum):
     active = "active"
     inactive = "inactive"
     deleted = "deleted"
 
-class Property(Base, UUIDMixin, TimestampMixin):
+class Property(Base, TimestampMixin):
     __tablename__ = "properties"
     
-    owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    property_id = uuid_pk("property_id")
+    owner_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=False)
     name = Column(String, nullable=False)
     street = Column(String, nullable=False)
     city = Column(String, nullable=False)

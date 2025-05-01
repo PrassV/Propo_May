@@ -21,7 +21,7 @@ class UserRepository:
         return db_user
     
     async def get_by_id(self, user_id: UUID) -> Optional[User]:
-        result = await self.db.execute(select(User).where(User.id == user_id))
+        result = await self.db.execute(select(User).where(User.user_id == user_id))
         return result.scalars().first()
     
     async def get_by_email(self, email: str) -> Optional[User]:
@@ -46,13 +46,13 @@ class UserRepository:
             user_data["password_hash"] = get_password_hash(user_data.pop("password"))
             
         await self.db.execute(
-            update(User).where(User.id == user_id).values(**user_data)
+            update(User).where(User.user_id == user_id).values(**user_data)
         )
         await self.db.commit()
         return await self.get_by_id(user_id)
     
     async def delete(self, user_id: UUID) -> None:
-        await self.db.execute(delete(User).where(User.id == user_id))
+        await self.db.execute(delete(User).where(User.user_id == user_id))
         await self.db.commit()
     
     async def authenticate(self, email: str, password: str) -> Optional[User]:

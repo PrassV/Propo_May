@@ -16,7 +16,7 @@ class UnitRepository:
         return db_unit
     
     async def get_by_id(self, unit_id: UUID) -> Optional[Unit]:
-        result = await self.db.execute(select(Unit).where(Unit.id == unit_id))
+        result = await self.db.execute(select(Unit).where(Unit.unit_id == unit_id))
         return result.scalars().first()
     
     async def list_by_property(self, 
@@ -52,7 +52,7 @@ class UnitRepository:
     
     async def update(self, unit_id: UUID, unit_data: dict) -> Optional[Unit]:
         await self.db.execute(
-            update(Unit).where(Unit.id == unit_id).values(**unit_data)
+            update(Unit).where(Unit.unit_id == unit_id).values(**unit_data)
         )
         await self.db.commit()
         return await self.get_by_id(unit_id)
@@ -63,7 +63,7 @@ class UnitRepository:
     
     async def hard_delete(self, unit_id: UUID) -> None:
         # Hard delete - remove from database
-        await self.db.execute(delete(Unit).where(Unit.id == unit_id))
+        await self.db.execute(delete(Unit).where(Unit.unit_id == unit_id))
         await self.db.commit()
         
     async def get_unit_with_details(self, unit_id: UUID) -> Optional[Dict[str, Any]]:
@@ -73,7 +73,7 @@ class UnitRepository:
             
         # Convert SQLAlchemy object to dict
         unit_dict = {
-            "unit_id": unit_obj.id,
+            "unit_id": unit_obj.unit_id,
             "property_id": unit_obj.property_id,
             "unit_number": unit_obj.unit_number,
             "floor": unit_obj.floor,

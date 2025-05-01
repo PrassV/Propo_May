@@ -10,4 +10,10 @@ class TimestampMixin:
     updated_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
 class UUIDMixin:
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4) 
+    """Base mixin for UUID primary keys. 
+    Child classes should override this with a specific column name."""
+    pass
+
+# Helper method for defining UUID primary keys with custom names
+def uuid_pk(column_name="id"):
+    return Column(column_name, UUID(as_uuid=True), primary_key=True, default=uuid.uuid4) 

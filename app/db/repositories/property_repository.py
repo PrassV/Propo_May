@@ -17,7 +17,7 @@ class PropertyRepository:
         return db_property
     
     async def get_by_id(self, property_id: UUID) -> Optional[Property]:
-        result = await self.db.execute(select(Property).where(Property.id == property_id))
+        result = await self.db.execute(select(Property).where(Property.property_id == property_id))
         return result.scalars().first()
     
     async def list(self, 
@@ -47,7 +47,7 @@ class PropertyRepository:
     
     async def update(self, property_id: UUID, property_data: dict) -> Optional[Property]:
         await self.db.execute(
-            update(Property).where(Property.id == property_id).values(**property_data)
+            update(Property).where(Property.property_id == property_id).values(**property_data)
         )
         await self.db.commit()
         return await self.get_by_id(property_id)
@@ -58,7 +58,7 @@ class PropertyRepository:
     
     async def hard_delete(self, property_id: UUID) -> None:
         # Hard delete - remove from database
-        await self.db.execute(delete(Property).where(Property.id == property_id))
+        await self.db.execute(delete(Property).where(Property.property_id == property_id))
         await self.db.commit()
         
     async def get_with_unit_stats(self, property_id: UUID) -> Optional[Dict[str, Any]]:
@@ -69,7 +69,7 @@ class PropertyRepository:
         # Get unit statistics
         result = await self.db.execute(
             select(
-                func.count(Unit.id).label("total_units"),
+                func.count(Unit.unit_id).label("total_units"),
                 func.sum(case([(Unit.status == UnitStatus.available, 1)], else_=0)).label("available_units"),
                 func.sum(case([(Unit.status == UnitStatus.occupied, 1)], else_=0)).label("occupied_units")
             ).where(Unit.property_id == property_id)
@@ -79,7 +79,7 @@ class PropertyRepository:
         
         # Convert SQLAlchemy object to dict
         property_dict = {
-            "property_id": property_obj.id,
+            "property_id": property_obj.property_id,
             "owner_id": property_obj.owner_id,
             "name": property_obj.name,
             "street": property_obj.street,

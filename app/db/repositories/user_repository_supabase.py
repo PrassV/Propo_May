@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 class UserRepositorySupabase:
     def __init__(self):
-        self.table = SupabaseTable("users")
+        self.table = SupabaseTable("users", pk_column="user_id")
     
     async def create(self, user_data: Dict[str, Any]) -> Dict[str, Any]:
         """
