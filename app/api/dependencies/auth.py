@@ -6,11 +6,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config.settings import settings
 from app.db.session import get_db
 from app.db.supabase import supabase
-from app.db.repositories.user_repository import UserRepository
+from app.db.repositories.user_repository_supabase import UserRepositorySupabase
 from app.schemas.token import TokenPayload
 from app.models.user import UserRole
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from uuid import UUID
+import logging
+
+logger = logging.getLogger(__name__)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_PREFIX}/auth/login")
 
@@ -36,41 +39,42 @@ async def get_current_user(
                 detail="Invalid authentication token",
             )
             
-        # Get user from our database
-        user_repo = UserRepository(db)
+        # Get user from our Supabase database
+        user_repo = UserRepositorySupabase()
         user = await user_repo.get_by_supabase_uid(session.user.id)
         
         if not user:
-            # If the user is in Supabase but not our DB, create a minimal record
+            # If the user is in Supabase Auth but not our DB, create a minimal record
             user_data = {
                 "email": session.user.email,
                 "supabase_uid": session.user.id,
-                "password_hash": "managed_by_supabase",
                 "first_name": "",
                 "last_name": "",
                 "role": "tenant",  # Default role
+                "status": "active"
             }
             user = await user_repo.create(user_data)
         
         return user
         
     except Exception as e:
+        logger.error(f"Auth error: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Could not validate credentials: {str(e)}",
         )
 
 async def get_current_active_user(current_user = Depends(get_current_user)):
-    if current_user.status.value != "active":
+    if current_user.get("status") != "active":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Inactive user",
         )
     return current_user
 
-def check_role(allowed_roles: List[UserRole]):
+def check_role(allowed_roles: List[str]):
     async def _check_role(current_user = Depends(get_current_active_user)):
-        if current_user.role not in allowed_roles:
+        if current_user.get("role") not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"User does not have required permissions",
@@ -79,6 +83,6 @@ def check_role(allowed_roles: List[UserRole]):
     return _check_role
 
 # Role-specific dependencies
-get_current_admin = check_role([UserRole.admin])
-get_current_owner = check_role([UserRole.owner, UserRole.admin])
-get_current_maintenance = check_role([UserRole.maintenance, UserRole.admin]) 
+get_current_admin = check_role(["admin"])
+get_current_owner = check_role(["owner", "admin"])
+get_current_maintenance = check_role(["maintenance", "admin"]) 

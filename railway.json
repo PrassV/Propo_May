@@ -7,6 +7,14 @@
   "deploy": {
     "startCommand": "python start.py",
     "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 10
+    "restartPolicyMaxRetries": 10,
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 10
+  },
+  "variables": {
+    "ENVIRONMENT": "production",
+    "DEBUG": "False",
+    "SUPABASE_PROJECT_ID": "ebvxgwccrlqisbyzwpjj",
+    "MCP_SERVER_URL": "http://localhost:3000"
   }
 } 
