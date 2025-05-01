@@ -7,7 +7,7 @@ from typing import Dict, Any
 
 from app.schemas.token import Token
 from app.schemas.user import User, UserCreate
-from app.core.security.auth import create_access_token, create_refresh_token, get_password_hash
+from app.core.security.auth import create_access_token, create_refresh_token
 from app.db.session import get_db
 from app.db.repositories.user_repository_supabase import UserRepositorySupabase
 from app.db.supabase import supabase
@@ -46,16 +46,14 @@ async def register_user(
         user_data = user_in.model_dump(exclude={"password"})
         user_data["user_id"] = supabase_uid  # Use this as the user_id in our users table
         
-        # Important: Set the password_hash field which is required in the database schema
-        user_data["password_hash"] = get_password_hash(user_in.password)
+        # Store a placeholder in password_hash to satisfy DB constraint
+        # We're not actually using this for auth - Supabase Auth handles that
+        user_data["password_hash"] = "SUPABASE_AUTH_MANAGED"
         
         created_user = await user_repo.create(user_data)
         
         if not created_user:
-            # If we couldn't save metadata, we should clean up the auth user
-            # This is not ideal but prevents orphaned auth users
             logger.error(f"Failed to save user metadata for user {supabase_uid}")
-            # Note: In a real app, you might want to delete the auth user here
             
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -103,7 +101,6 @@ async def login(
             )
         
         # Use the Supabase tokens directly
-        # Note: In a real app, you might want to validate these tokens or create your own
         session = auth_response.session
         if not session:
             raise HTTPException(
