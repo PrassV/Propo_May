@@ -24,11 +24,18 @@ app = FastAPI(
 allowed_origins = [
     "https://propomay-production.up.railway.app",  # Railway production URL
     "http://localhost:3000",  # Local frontend development
-    "*" if settings.DEBUG else None,  # Allow all origins in development
 ]
 
-# Remove None values
-allowed_origins = [origin for origin in allowed_origins if origin]
+# Add wildcard only in development mode
+if settings.DEBUG:
+    logger = logging.getLogger(__name__)
+    logger.warning("Running in DEBUG mode with permissive CORS settings. This is not recommended for production.")
+    # Instead of *, add specific development-only domains
+    allowed_origins.extend([
+        "http://localhost:8080",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8080",
+    ])
 
 app.add_middleware(
     CORSMiddleware,

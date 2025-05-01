@@ -7,8 +7,6 @@ from typing import Dict, Any
 
 from app.schemas.token import Token
 from app.schemas.user import User, UserCreate
-from app.core.security.auth import create_access_token, create_refresh_token
-from app.db.session import get_db
 from app.db.repositories.user_repository_supabase import UserRepositorySupabase
 from app.db.supabase import supabase
 from app.core.errors.supabase_error_handler import SupabaseError

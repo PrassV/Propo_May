@@ -1,8 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import List, Optional, Dict, Any
 from uuid import UUID
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.session import get_db
 from app.db.supabase import supabase
 from app.schemas.user import User, UserCreate, UserUpdate
 from app.db.repositories.user_repository_supabase import UserRepositorySupabase

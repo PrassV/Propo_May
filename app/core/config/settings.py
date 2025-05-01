@@ -2,6 +2,10 @@ from pydantic_settings import BaseSettings
 from typing import Optional
 import os
 from pathlib import Path
+import logging
+import secrets
+
+logger = logging.getLogger(__name__)
 
 class Settings(BaseSettings):
     # Deployment configuration
@@ -16,16 +20,17 @@ class Settings(BaseSettings):
     DEBUG: bool = os.getenv("DEBUG", "True").lower() in ("true", "1", "t")
     
     # Security
-    SECRET_KEY: str = os.getenv("JWT_SECRET", "MHO2+beTv9sniyrm5hJWneQWWu9pPj1BR4N/kdG9IyCa1xIKqldHg0hLgpDQlPCWFD2U3jMcQhWPhdxpimUGfA==")
+    SECRET_KEY: str = os.getenv("JWT_SECRET", "")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
-    # Supabase
+    # Supabase - Primary data access method for this application
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
     SUPABASE_KEY: str = os.getenv("SUPABASE_ANON_KEY", "")
     SUPABASE_SERVICE_ROLE_KEY: Optional[str] = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
     
-    # Database
+    # Database - DEPRECATED: This app now uses Supabase for all data access
+    # This is kept for backward compatibility but should not be used for new code
     DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres")
     
     # Email
@@ -42,8 +47,15 @@ class Settings(BaseSettings):
         if not self.SUPABASE_KEY and os.getenv("SUPABASE_ANON_KEY"):
             self.SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY")
         
-        # Use JWT_SECRET if SECRET_KEY is not set
-        if os.getenv("JWT_SECRET") and self.SECRET_KEY == "MHO2+beTv9sniyrm5hJWneQWWu9pPj1BR4N/kdG9IyCa1xIKqldHg0hLgpDQlPCWFD2U3jMcQhWPhdxpimUGfA==":
-            self.SECRET_KEY = os.getenv("JWT_SECRET")
+        # Generate a random secret key if not provided
+        if not self.SECRET_KEY:
+            if self.ENVIRONMENT == "production":
+                # Log a warning in production but still provide a random key
+                logger.warning(
+                    "No SECRET_KEY or JWT_SECRET provided in production environment! "
+                    "Using a randomly generated key, but this will change on restart. "
+                    "Please set JWT_SECRET in environment variables."
+                )
+            self.SECRET_KEY = secrets.token_hex(32)
 
 settings = Settings() 
