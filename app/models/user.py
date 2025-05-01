@@ -2,6 +2,7 @@ from sqlalchemy import Column, String, Boolean, Enum
 from sqlalchemy.dialects.postgresql import UUID, ARRAY
 from sqlalchemy.sql import func
 from sqlalchemy import TIMESTAMP
+from sqlalchemy.orm import relationship
 import enum
 import uuid
 from app.models.base import Base, TimestampMixin
