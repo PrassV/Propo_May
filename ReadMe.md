@@ -1236,3 +1236,92 @@ Secure credential management
 use Supabase for Authentication. Please find below Supabase credential in .env file
 
 Use MCP server to communicate with supabase db.
+
+## Frontend
+
+### Overview
+
+The frontend application for Propo is built with React, TypeScript, Tailwind CSS, and shadcn/ui components. It integrates with the FastAPI backend and uses Supabase for authentication.
+
+### Features
+
+- Responsive design for all devices
+- Secure authentication with Supabase Auth
+- Role-based access control (Owner, Tenant, Admin)
+- Property management for owners
+- Tenant portal for renters
+- Maintenance request tracking
+- Payment management
+- Dynamic dashboards based on user roles
+
+### Project Structure
+
+```
+frontend/
+├── src/               # Source files
+│   ├── assets/        # Static assets like images
+│   ├── components/    # Reusable components
+│   │   ├── ui/        # UI components from shadcn/ui
+│   │   └── layout/    # Layout components (Sidebar, Header, etc.)
+│   ├── contexts/      # React context providers
+│   ├── hooks/         # Custom React hooks
+│   ├── pages/         # Page components
+│   ├── services/      # API services
+│   ├── types/         # TypeScript type definitions
+│   └── utils/         # Utility functions
+├── public/            # Public static files
+```
+
+### Getting Started with Frontend
+
+#### Prerequisites
+
+- Node.js 16+
+- npm or yarn
+
+#### Installation
+
+1. Install frontend dependencies:
+
+```bash
+cd frontend
+npm install
+```
+
+2. Create a `.env` file in the frontend directory with your Supabase credentials:
+
+```
+VITE_API_URL=http://localhost:8000/api
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+3. Start the development server:
+
+```bash
+npm run dev
+```
+
+The application will be available at http://localhost:5173
+
+#### Building for Production
+
+To create a production build:
+
+```bash
+npm run build
+```
+
+The built files will be in the `dist` directory.
+
+### Frontend Technologies
+
+- **React** - UI library
+- **TypeScript** - Type safety
+- **Tailwind CSS** - Styling
+- **shadcn/ui** - UI component library
+- **React Router** - Routing
+- **React Query** - Data fetching and caching
+- **Supabase** - Authentication
+- **Axios** - HTTP client
+- **Vite** - Build tool
