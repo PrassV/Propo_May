@@ -90,7 +90,7 @@ mcp = FastApiMCP(
     app,  
     name="Auth MCP",  
     description="MCP server for my Auth API",  # Description
-    base_url="https://propomay-production.up.railway.app",  # Where your API is running
+    #base_url="https://propomay-production.up.railway.app",  # Where your API is running
     describe_all_responses=True,  # Include all possible response schemas
     describe_full_response_schema=True,
     include_tags=["authentication", "users"]
