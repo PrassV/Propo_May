@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from jose import jwt, JWTError
 from typing import Dict, Any
 from pydantic import EmailStr
+#from fastapi_mcp import FastApiMCP
 
 from app.schemas.token import Token
 from app.schemas.user import User, UserCreate

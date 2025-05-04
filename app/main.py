@@ -6,6 +6,7 @@ from app.core.errors.supabase_error_handler import SupabaseErrorHandler, Supabas
 from app.db.supabase_config import configure_supabase_auth_urls, customize_email_templates
 import uvicorn
 import logging
+from fastapi_mcp import FastApiMCP
 
 # Configure logging
 logging.basicConfig(
@@ -83,6 +84,19 @@ async def startup_event():
             "Cannot configure Supabase Auth URLs or email templates. "
             "Email confirmations will use default redirect URLs and templates."
         )
+
+    
+mcp = FastApiMCP(
+    app,  
+    name="Auth MCP",  
+    description="MCP server for my Auth API",  # Description
+    base_url="https://propomay-production.up.railway.app",  # Where your API is running
+    describe_all_responses=True,  # Include all possible response schemas
+    describe_full_response_schema=True,
+    include_tags=["authentication", "users"]
+)
+
+mcp.mount()
 
 if __name__ == "__main__":
     # Run with uvicorn when executed directly
