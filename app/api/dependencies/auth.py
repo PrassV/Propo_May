@@ -24,13 +24,10 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any
     This verifies the JWT with Supabase and retrieves the user's data.
     """
     try:
-        # Set the access token directly
-        supabase.auth.set_auth_token(token)
+        # Create a new client with the token
+        client = supabase.auth.get_user(token)
         
-        # Get the session user 
-        session = supabase.auth.get_user()
-        
-        if not session or not session.user:
+        if not client or not client.user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid authentication credentials",
@@ -39,7 +36,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any
         
         # Get the user from our database table using the Supabase user ID
         user_repo = UserRepositorySupabase()
-        user = await user_repo.get_by_id(session.user.id)
+        user = await user_repo.get_by_id(client.user.id)
         
         if not user:
             raise HTTPException(

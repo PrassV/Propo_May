@@ -157,7 +157,7 @@ async def refresh_token(
         # Use the refresh token to get a new access token
         auth_response = supabase.auth.refresh_session(refresh_token)
         
-        if not auth_response.session:
+        if not auth_response or not auth_response.session:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid refresh token"
