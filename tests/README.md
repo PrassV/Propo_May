@@ -1,19 +1,21 @@
-# Authentication and User Management API Tests
+# Direct API Testing for Property Management Portal
 
-This directory contains automated tests for the authentication and user management endpoints of the Property Management Portal API.
+This directory contains automated tests that directly test the API endpoints of the Property Management Portal.
 
 ## Overview
 
-The test suite uses pytest and the MCP (Model Context Protocol) server to test the API endpoints thoroughly.
+The test suite uses pytest, pytest-asyncio, and httpx to make real HTTP requests to the API endpoints. This approach:
 
-### Structure
+1. Tests actual API behavior in the real environment
+2. Validates true API responses and status codes
+3. Detects real-world issues like network problems or server unavailability
+4. Requires minimal maintenance - no mocks to update when API changes
 
-- `mcp_client.py`: Client for communicating with the MCP server
-- `auth_test_base.py`: Base class for auth tests with common functionality
-- `test_auth_endpoints.py`: Tests for authentication endpoints
-- `test_user_endpoints.py`: Tests for user management endpoints
-- `test_auth_scenarios.py`: End-to-end auth scenario tests
-- `conftest.py`: Pytest configuration
+## Structure
+
+- `simple_test.py`: Direct API tests for key functionality
+- `conftest.py`: Pytest configuration for the test suite
+- `run_tests.sh`: Script to run the tests
 
 ## Requirements
 
@@ -35,41 +37,25 @@ To run all tests:
 
 ```bash
 # From the project root directory
-pytest tests/
+./tests/run_tests.sh
 
-# With more verbose output
-pytest -v tests/
-
-# Run specific test file
-pytest tests/test_auth_endpoints.py
-
-# Run specific test
-pytest tests/test_auth_endpoints.py::TestAuthEndpoints::test_user_registration
+# Or manually with pytest
+python -m pytest tests/simple_test.py -v
 ```
 
-## MCP Server Integration
+## Test Cases
 
-The tests use the MCP server at `https://propomay-production.up.railway.app/mcp` to perform database operations. The MCP server provides these tools:
+The current test suite includes:
 
-- `execute_query`: Run SQL queries
-- `insert_data`: Insert data into tables
-- `update_data`: Update existing records
-- `delete_data`: Delete records
-- `describe_schema`: Get database schema info
+1. `test_unauthorized_access`: Verifies that protected endpoints require authentication
+2. `test_api_server_availability`: Confirms the API server is online and responding
 
-## Test Cleanup
+## Adding New Tests
 
-The tests automatically clean up any test data they create. If you need to manually clean up test data, you can use:
+When adding new tests:
 
-```python
-# From the Python interpreter
-import asyncio
-from tests.mcp_client import MCPClient
-
-async def cleanup():
-    client = MCPClient()
-    await client.clean_up_test_users("test_user_%")
-    await client.close()
-
-asyncio.run(cleanup())
-``` 
+1. Add them to `simple_test.py` or create new test files as needed
+2. Use the `@pytest.mark.asyncio` decorator for async test functions
+3. Make HTTP requests using `httpx.AsyncClient`
+4. Add clear assertions that validate expected behavior
+5. Handle errors gracefully with informative messages 

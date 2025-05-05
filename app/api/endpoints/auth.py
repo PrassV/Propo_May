@@ -155,9 +155,7 @@ async def refresh_token(
     """
     try:
         # Use the refresh token to get a new access token
-        auth_response = supabase.auth.refresh_session({
-            "refresh_token": refresh_token
-        })
+        auth_response = supabase.auth.refresh_session(refresh_token)
         
         if not auth_response.session:
             raise HTTPException(

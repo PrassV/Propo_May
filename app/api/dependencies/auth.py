@@ -24,11 +24,11 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any
     This verifies the JWT with Supabase and retrieves the user's data.
     """
     try:
-        # Set the session token to the provided token
-        supabase.auth.set_session(token)
+        # Set the access token directly
+        supabase.auth.set_auth_token(token)
         
-        # Get the session user
-        session = supabase.auth.get_session()
+        # Get the session user 
+        session = supabase.auth.get_user()
         
         if not session or not session.user:
             raise HTTPException(

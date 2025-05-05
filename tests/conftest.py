@@ -1,16 +1,12 @@
 """
-Pytest configuration file.
+Pytest configuration file for direct API testing.
 
-This file contains global pytest configuration for the test suite.
+This file contains global pytest configuration for the API test suite.
 """
 import pytest
-import logging
-import os
+import pytest_asyncio
 import sys
-from typing import Dict, Any, Optional, List
-
-# Add the parent directory to sys.path to allow importing from app
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+import logging
 
 # Configure logging
 logging.basicConfig(
@@ -22,16 +18,12 @@ logging.basicConfig(
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("asyncio").setLevel(logging.WARNING)
 
-# Define pytest hooks
+# Register pytest-asyncio plugin
+pytest_plugins = ["pytest_asyncio"]
+
 def pytest_configure(config):
     """Configure pytest before test collection."""
-    print("\nRunning Authentication and User Management API Tests...\n")
+    print("\nRunning Direct API Tests...\n")
 
-
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create an event loop for the test session."""
-    import asyncio
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close() 
+# pytest-asyncio will automatically detect mode from command line or pytest.ini
+# Don't try to set it programmatically here 
