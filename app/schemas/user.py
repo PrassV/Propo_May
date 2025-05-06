@@ -23,6 +23,16 @@ class UserStatus(str, Enum):
     def _missing_(cls, value):
         raise ValueError(f"Invalid UserStatus: {value}")
 
+class VerificationStatus(str, Enum):
+    not_submitted = "not_submitted"
+    pending = "pending"
+    verified = "verified"
+    rejected = "rejected"
+
+    @classmethod
+    def _missing_(cls, value):
+        raise ValueError(f"Invalid VerificationStatus: {value}")
+
 class AddressSchema(BaseModel):
     street: str
     city: str
