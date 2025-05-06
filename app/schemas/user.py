@@ -10,16 +10,18 @@ class UserRole(str, Enum):
     maintenance = "maintenance"
     admin = "admin"
 
+    @classmethod
+    def _missing_(cls, value):
+        raise ValueError(f"Invalid UserRole: {value}")
+
 class UserStatus(str, Enum):
     active = "active"
     inactive = "inactive"
     pending = "pending"
-    
-class VerificationStatus(str, Enum):
-    not_submitted = "not_submitted"
-    pending = "pending"
-    verified = "verified"
-    rejected = "rejected"
+
+    @classmethod
+    def _missing_(cls, value):
+        raise ValueError(f"Invalid UserStatus: {value}")
 
 class AddressSchema(BaseModel):
     street: str
@@ -42,10 +44,10 @@ class UserBase(BaseModel):
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    first_name: str
+    last_name: str
     phone: Optional[str] = None
-    role: UserRole = UserRole.tenant
+    role: UserRole
 
     @field_validator('password')
     def password_must_be_strong(cls, v):
@@ -53,13 +55,23 @@ class UserCreate(BaseModel):
             raise ValueError('Password must be at least 8 characters')
         return v
 
+    @field_validator('role')
+    def validate_role(cls, v):
+        if not isinstance(v, UserRole):
+            raise ValueError(f"Role must be one of: {', '.join([r.value for r in UserRole])}")
+        return v
+
 # Properties to receive via API on update
-class UserUpdate(BaseModel):
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    phone: Optional[str] = None
-    profile_picture_url: Optional[str] = None
-    
+class UserUpdate(UserBase):
+    password: Optional[str] = None
+    role: Optional[UserRole] = None
+
+    @field_validator('status')
+    def validate_status(cls, v):
+        if v is not None and not isinstance(v, UserStatus):
+            raise ValueError(f"Status must be one of: {', '.join([s.value for s in UserStatus])}")
+        return v
+
 # User profile setup after registration
 class UserProfileSetup(BaseModel):
     first_name: str

@@ -28,7 +28,7 @@ class Property(Base, TimestampMixin):
     total_units = Column(Integer, nullable=False)
     amenities = Column(ARRAY(Text), default=[])
     description = Column(Text)
-    status = Column(Enum(PropertyStatus), default=PropertyStatus.active)
+    status = Column(Enum(PropertyStatus, native_enum=False), default=PropertyStatus.active)
     tax_id = Column(String)
     
     # Relationships

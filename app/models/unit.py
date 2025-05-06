@@ -24,7 +24,7 @@ class Unit(Base, TimestampMixin):
     square_feet = Column(Integer, nullable=False)
     rent_amount = Column(Numeric(10, 2), nullable=False)
     security_deposit = Column(Numeric(10, 2), nullable=False)
-    status = Column(Enum(UnitStatus), default=UnitStatus.available)
+    status = Column(Enum(UnitStatus, native_enum=False), default=UnitStatus.available)
     amenities = Column(ARRAY(Text), default=[])
     description = Column(Text)
     

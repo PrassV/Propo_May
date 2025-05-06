@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Body, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
-from sqlalchemy.ext.asyncio import AsyncSession
 from jose import jwt, JWTError
 from typing import Dict, Any
 from pydantic import EmailStr
@@ -51,7 +50,20 @@ async def register_user(
         # We're not actually using this for auth - Supabase Auth handles that
         user_data["password_hash"] = "SUPABASE_AUTH_MANAGED"
         
-        created_user = await user_repo.create(user_data)
+        # Attempt to save user metadata
+        try:
+            created_user = await user_repo.create(user_data)
+        except Exception as e:
+            # Roll back Supabase Auth user on metadata failure
+            try:
+                supabase.auth.admin.delete_user(supabase_uid)
+            except Exception:
+                logger.error(f"Failed to rollback Supabase Auth user {supabase_uid}")
+            logger.error(f"Failed to save user metadata for user {supabase_uid}: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to save user metadata; registration rolled back"
+            )
         
         if not created_user:
             logger.error(f"Failed to save user metadata for user {supabase_uid}")
@@ -62,11 +74,12 @@ async def register_user(
             )
         
         return created_user
+    except HTTPException:
+        raise
+    except SupabaseError:
+        raise
     except Exception as e:
         logger.error(f"Registration error: {e}")
-        if isinstance(e, HTTPException):
-            raise
-        
         # Handle Supabase specific errors
         error_message = str(e)
         if "already registered" in error_message.lower():
@@ -74,7 +87,6 @@ async def register_user(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered"
             )
-        
         raise SupabaseError(
             code="REGISTRATION_ERROR",
             message=f"Registration failed: {error_message}",

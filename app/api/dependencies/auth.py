@@ -76,34 +76,17 @@ async def get_current_active_user(
 
 async def get_user_available_roles(user_id: str) -> List[str]:
     """
-    Get the list of roles available to the user.
-    In a real implementation, this would check a user_roles table.
-    For now, we'll simulate this with a simple check.
+    Get the list of roles available to the user from user_roles table.
     """
-    # This is a placeholder implementation
-    # In a real app, you'd query a user_roles table or similar
-    # For now, we'll just return the user's current role
-    user_repo = UserRepositorySupabase()
-    user = await user_repo.get_by_id(user_id)
-    
-    if not user:
+    try:
+        # Query the user_roles table in Supabase
+        resp = supabase.table("user_roles").select("role").eq("user_id", user_id).execute()
+        data = resp.data or []
+        # Extract roles as list of strings
+        return [r.get("role") for r in data if r.get("role")]
+    except Exception as e:
+        logger.error(f"Error fetching roles for user {user_id}: {e}")
         return []
-    
-    # In a real implementation, you'd return all assigned roles
-    # For now, we'll return the current role and tenant for owners
-    # This allows owners to switch to tenant view
-    current_role = user.get("role")
-    roles = [current_role]
-    
-    # If the user is an owner, they can also see tenant view
-    if current_role == "owner":
-        roles.append("tenant")
-    
-    # Admins can see all views
-    if current_role == "admin":
-        roles = ["admin", "owner", "tenant", "maintenance"]
-        
-    return roles
 
 def get_active_role(request: Request) -> str:
     """Get the active role from request state"""
@@ -167,11 +150,21 @@ async def switch_role(
     available_roles = await get_user_available_roles(current_user.get("user_id"))
     
     if new_role not in available_roles:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"You do not have access to the {new_role} role"
+        handle_permission_error(
+            entity="role", operation="switch", user_role=current_user.get("role")
         )
     
+    # Log the role switch audit
+    from datetime import datetime
+    try:
+        supabase.table("role_switch_audit").insert({
+            "user_id": current_user.get("user_id"),
+            "from_role": get_active_role(request),
+            "to_role": new_role,
+            "switched_at": datetime.utcnow().isoformat()
+        }).execute()
+    except Exception as audit_err:
+        logger.warning(f"Role switch audit failed: {audit_err}")
     # Update the active role in request state
     request.state.__dict__[active_role_key] = new_role
     return True

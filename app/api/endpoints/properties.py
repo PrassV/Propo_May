@@ -5,6 +5,8 @@ from app.schemas.property import Property, PropertyCreate, PropertyUpdate, Prope
 from app.db.repositories.property_repository_supabase import PropertyRepositorySupabase
 from app.api.dependencies.auth import get_current_active_user, get_current_owner, get_current_admin
 import json
+import uuid
+from app.core.config.settings import settings
 
 router = APIRouter()
 
@@ -74,9 +76,13 @@ async def list_properties(
             owner_id=current_user.get("user_id"), skip=skip, limit=limit, 
             city=city, state=state, property_type=property_type
         )
+    elif current_user.get("role") == "maintenance":
+        # Maintenance staff sees assigned properties
+        assignments = supabase.table("maintenance_assignments").select("property_id").eq("maintenance_user_id", current_user.get("user_id")).execute()
+        assigned_ids = {item.get('property_id') for item in assignments.data or []}
+        properties = [p for p in await property_repo.list(skip=skip, limit=limit, city=city, state=state, property_type=property_type) if p.get('property_id') in assigned_ids]
     else:
-        # For tenants and maintenance, we'll implement this later
-        # For now, return an empty list
+        # Tenants: properties they're renting (placeholder)
         properties = []
         
     return properties
@@ -198,9 +204,17 @@ async def upload_property_images(
             detail="Not enough permissions to upload images for this property"
         )
     
-    # TODO: Implement image upload to storage
-    # For now, return a placeholder response
-    return {
-        "property_id": str(property_id),
-        "images": [f"https://storage.example.com/properties/{property_id}_{i+1}.jpg" for i in range(len(images))]
-    } 
+    # Upload to Supabase Storage
+    bucket = supabase.storage.from_(settings.SUPABASE_BUCKET_NAME)
+    urls = []
+    for img in images:
+        content = await img.read()
+        ext = img.filename.split('.')[-1]
+        key = f"properties/{property_id}/{uuid.uuid4()}.{ext}"
+        res = bucket.upload(key, content)
+        if res.error:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Upload failed: {res.error.message}")
+        public = bucket.get_public_url(key)
+        urls.append(public.url)
+    # Optionally, update property record with image URLs
+    return {"property_id": str(property_id), "images": urls} 

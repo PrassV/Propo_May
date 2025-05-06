@@ -27,11 +27,24 @@ class User(Base, TimestampMixin):
     first_name = Column(String, nullable=False)
     last_name = Column(String, nullable=False)
     phone = Column(String)
-    role = Column(Enum(UserRole), nullable=False)
+    role = Column(Enum(UserRole, native_enum=False), nullable=False)
     profile_picture_url = Column(String)
     email_verified = Column(Boolean, default=False)
-    status = Column(Enum(UserStatus), default=UserStatus.active)
+    status = Column(Enum(UserStatus, native_enum=False), default=UserStatus.active)
     last_login_at = Column(TIMESTAMP(timezone=True))
     
     # Relationships
-    properties = relationship("Property", back_populates="owner", cascade="all, delete-orphan") 
+    properties = relationship("Property", back_populates="owner", cascade="all, delete-orphan")
+
+    @staticmethod
+    def from_dict(data: dict) -> 'User':
+        """
+        Convert a raw dictionary (e.g. from Supabase) into a User instance.
+        Handles string-to-enum conversion.
+        """
+        data = data.copy()
+        if 'role' in data and isinstance(data['role'], str):
+            data['role'] = UserRole(data['role'])
+        if 'status' in data and isinstance(data['status'], str):
+            data['status'] = UserStatus(data['status'])
+        return User(**data) 

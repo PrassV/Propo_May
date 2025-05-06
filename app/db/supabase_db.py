@@ -1,19 +1,20 @@
 from app.db.supabase import supabase
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Union
 import uuid
+from uuid import UUID
 import logging
 from app.utils.serializers import serialize_for_supabase
 
 logger = logging.getLogger(__name__)
 
-# Primary key mapping based on MCP schema info
+# Primary key mapping based on Supabase schema
 TABLE_PRIMARY_KEY_MAP = {
-    "users": "user_id",
+    "users": "id",
     "properties": "property_id",
     "units": "unit_id",
     "tasks": "task_id",
     "documents": "document_id",
-    "inspections": "inspection_id",
+    "inspections": "request_id",
     "maintenance_requests": "request_id",
     "invoices": "invoice_id",
     "payments": "payment_id",
@@ -52,10 +53,10 @@ class SupabaseTable:
             logger.error(f"Error creating record in {self.table_name}: {e}")
             raise
     
-    async def get_by_id(self, record_id: str) -> Optional[Dict[str, Any]]:
+    async def get_by_id(self, record_id: Union[str, UUID]) -> Optional[Dict[str, Any]]:
         """Get a record by its primary key"""
         try:
-            response = supabase.table(self.table_name).select("*").eq(self.pk_column, record_id).execute()
+            response = supabase.table(self.table_name).select("*").eq(self.pk_column, str(record_id)).execute()
             
             if response.data and len(response.data) > 0:
                 return response.data[0]
@@ -107,13 +108,13 @@ class SupabaseTable:
             logger.error(f"Error listing records from {self.table_name}: {e}")
             raise
             
-    async def update(self, record_id: str, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def update(self, record_id: Union[str, UUID], data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Update a record by its primary key"""
         try:
             # Serialize any datetime objects
             serialized_data = serialize_for_supabase(data)
             
-            response = supabase.table(self.table_name).update(serialized_data).eq(self.pk_column, record_id).execute()
+            response = supabase.table(self.table_name).update(serialized_data).eq(self.pk_column, str(record_id)).execute()
             
             if response.data and len(response.data) > 0:
                 return response.data[0]
@@ -123,10 +124,10 @@ class SupabaseTable:
             logger.error(f"Error updating record in {self.table_name}: {e}")
             raise
             
-    async def delete(self, record_id: str) -> bool:
+    async def delete(self, record_id: Union[str, UUID]) -> bool:
         """Delete a record by its primary key"""
         try:
-            response = supabase.table(self.table_name).delete().eq(self.pk_column, record_id).execute()
+            response = supabase.table(self.table_name).delete().eq(self.pk_column, str(record_id)).execute()
             
             if response.data:
                 return True
